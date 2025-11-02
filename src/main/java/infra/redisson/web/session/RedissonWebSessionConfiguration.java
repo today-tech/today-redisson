@@ -17,6 +17,7 @@
 
 package infra.redisson.web.session;
 
+import org.jspecify.annotations.Nullable;
 import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
@@ -25,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import infra.context.annotation.Configuration;
 import infra.context.annotation.ImportAware;
 import infra.core.type.AnnotationMetadata;
-import infra.lang.Nullable;
 import infra.session.SessionEventDispatcher;
 import infra.session.SessionIdGenerator;
 import infra.stereotype.Component;
@@ -73,7 +73,7 @@ public class RedissonWebSessionConfiguration implements ImportAware {
 
   @Override
   public void setImportMetadata(AnnotationMetadata importMetadata) {
-    var annotation = importMetadata.getAnnotation(EnableRedissonWebSession.class);
+    var annotation = importMetadata.getAnnotation(EnableRedissonSession.class);
     this.keyPrefix = annotation.getString("keyPrefix");
     this.maxIdleTime = annotation.getInt("maxIdleTime");
     this.timeUnit = annotation.getEnum("timeUnit", TimeUnit.class);

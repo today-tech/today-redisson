@@ -16,17 +16,18 @@
  */
 package infra.redisson.cache;
 
+import org.jspecify.annotations.Nullable;
 import org.redisson.api.RLock;
 import org.redisson.api.RMap;
 import org.redisson.api.RMapCache;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import infra.cache.Cache;
 import infra.cache.support.SimpleValueWrapper;
 import infra.lang.NullValue;
+import infra.util.function.ThrowingFunction;
 
 /**
  * @author Nikita Koksharov
@@ -115,7 +116,38 @@ public class RedissonCache implements Cache {
   }
 
   @Override
-  public void put(Object key, Object value) {
+  public <K, V> @Nullable V get(K key, ThrowingFunction<? super K, ? extends V> valueLoader) {
+    Object value;
+    if (mapCache != null && config.getMaxIdleTime() == 0 && config.getMaxSize() == 0) {
+      value = mapCache.getWithTTLOnly(key);
+    }
+    else {
+      value = map.get(key);
+    }
+
+    if (value == null) {
+      addCacheMiss();
+      RLock lock = map.getLock(key);
+      lock.lock();
+      try {
+        value = map.get(key);
+        if (value == null) {
+          value = putValue(key, valueLoader, value);
+        }
+      }
+      finally {
+        lock.unlock();
+      }
+    }
+    else {
+      addCacheHit();
+    }
+
+    return (V) fromStoreValue(value);
+  }
+
+  @Override
+  public void put(Object key, @Nullable Object value) {
     if (!allowNullValues && value == null) {
       map.remove(key);
       return;
@@ -131,7 +163,8 @@ public class RedissonCache implements Cache {
     addCachePut();
   }
 
-  public ValueWrapper putIfAbsent(Object key, Object value) {
+  @Override
+  public ValueWrapper putIfAbsent(Object key, @Nullable Object value) {
     Object prevValue;
     if (!allowNullValues && value == null) {
       prevValue = map.get(key);
@@ -162,7 +195,7 @@ public class RedissonCache implements Cache {
     map.clear();
   }
 
-  private ValueWrapper toValueWrapper(Object value) {
+  private ValueWrapper toValueWrapper(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -172,39 +205,9 @@ public class RedissonCache implements Cache {
     return new SimpleValueWrapper(value);
   }
 
-  public <T> T get(Object key, Callable<T> valueLoader) {
-    Object value;
-    if (mapCache != null && config.getMaxIdleTime() == 0 && config.getMaxSize() == 0) {
-      value = mapCache.getWithTTLOnly(key);
-    }
-    else {
-      value = map.get(key);
-    }
-
-    if (value == null) {
-      addCacheMiss();
-      RLock lock = map.getLock(key);
-      lock.lock();
-      try {
-        value = map.get(key);
-        if (value == null) {
-          value = putValue(key, valueLoader, value);
-        }
-      }
-      finally {
-        lock.unlock();
-      }
-    }
-    else {
-      addCacheHit();
-    }
-
-    return (T) fromStoreValue(value);
-  }
-
-  private <T> Object putValue(Object key, Callable<T> valueLoader, Object value) {
+  private Object putValue(Object key, ThrowingFunction valueLoader, Object value) {
     try {
-      value = valueLoader.call();
+      value = valueLoader.apply(key);
     }
     catch (Exception ex) {
       throw new ValueRetrievalException(key, valueLoader, ex);
@@ -213,14 +216,14 @@ public class RedissonCache implements Cache {
     return value;
   }
 
-  protected Object fromStoreValue(Object storeValue) {
+  protected @Nullable Object fromStoreValue(Object storeValue) {
     if (storeValue instanceof NullValue) {
       return null;
     }
     return storeValue;
   }
 
-  protected Object toStoreValue(Object userValue) {
+  protected Object toStoreValue(@Nullable Object userValue) {
     if (userValue == null) {
       return NullValue.INSTANCE;
     }

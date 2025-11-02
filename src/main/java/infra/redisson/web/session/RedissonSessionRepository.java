@@ -17,6 +17,7 @@
 
 package infra.redisson.web.session;
 
+import org.jspecify.annotations.Nullable;
 import org.redisson.api.BatchOptions;
 import org.redisson.api.BatchResult;
 import org.redisson.api.RBatch;
@@ -40,13 +41,12 @@ import java.util.concurrent.TimeUnit;
 import infra.core.AttributeAccessor;
 import infra.core.Conventions;
 import infra.lang.Assert;
-import infra.lang.Nullable;
 import infra.session.MapSession;
 import infra.session.SecureRandomSessionIdGenerator;
+import infra.session.Session;
 import infra.session.SessionEventDispatcher;
 import infra.session.SessionIdGenerator;
 import infra.session.SessionRepository;
-import infra.session.WebSession;
 import infra.util.CollectionUtils;
 import infra.util.StringUtils;
 
@@ -174,7 +174,7 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
   }
 
   @Override
-  public RedissonSession createSession() {
+  public Session createSession() {
     RedissonSession session = new RedissonSession();
     if (defaultMaxInactiveInterval != null) {
       session.setMaxIdleTime(defaultMaxInactiveInterval);
@@ -183,7 +183,7 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
   }
 
   @Override
-  public WebSession createSession(String id) {
+  public Session createSession(String id) {
     RedissonSession session = new RedissonSession(id);
     if (defaultMaxInactiveInterval != null) {
       session.setMaxIdleTime(defaultMaxInactiveInterval);
@@ -201,9 +201,14 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
     return new RedissonSession(mapSession);
   }
 
+  @Override
+  public void removeSession(Session session) {
+    removeSession(session.getId());
+  }
+
   @Nullable
   @Override
-  public WebSession removeSession(String sessionId) {
+  public Session removeSession(String sessionId) {
     RedissonSession session = retrieveSession(sessionId);
     if (session == null) {
       return null;
@@ -217,8 +222,8 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
   }
 
   @Override
-  public void updateLastAccessTime(WebSession webSession) {
-    webSession.setLastAccessTime(Instant.now());
+  public void updateLastAccessTime(Session Session) {
+    Session.setLastAccessTime(Instant.now());
   }
 
   @Override
@@ -242,7 +247,7 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
   }
 
   @Nullable
-  String resolvePrincipal(WebSession session) {
+  String resolvePrincipal(Session session) {
     Object attribute = session.getAttribute(PRINCIPAL_NAME_INDEX_NAME);
     if (attribute instanceof String principalName) {
       return principalName;
@@ -279,7 +284,7 @@ public class RedissonSessionRepository implements SessionRepository, PatternMess
     return redisson.getSet(principalKey, StringCodec.INSTANCE);
   }
 
-  final class RedissonSession implements WebSession {
+  final class RedissonSession implements Session {
 
     @Nullable
     private String principalName;

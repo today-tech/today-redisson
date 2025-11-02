@@ -43,7 +43,8 @@ public class CacheConfig {
    * Creates config object with
    * <code>ttl = 0</code> and <code>maxIdleTime = 0</code>.
    */
-  public CacheConfig() { }
+  public CacheConfig() {
+  }
 
   /**
    * Creates config object.

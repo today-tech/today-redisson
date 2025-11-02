@@ -24,24 +24,24 @@ import java.lang.annotation.Target;
 import java.util.concurrent.TimeUnit;
 
 import infra.context.annotation.Import;
-import infra.session.WebSession;
-import infra.session.config.EnableWebSession;
+import infra.session.Session;
+import infra.session.config.EnableSession;
 
 /**
  * @author <a href="https://github.com/TAKETODAY">Harry Yang</a>
  * @since 4.0 2022/5/6 14:26
  */
-@EnableWebSession
+@EnableSession
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Import(RedissonWebSessionConfiguration.class)
-public @interface EnableRedissonWebSession {
+public @interface EnableRedissonSession {
 
   /**
    * Return the maximum time after the lastAccessTime before a session expires.
    * A negative time indicates the session doesn't expire.
    *
-   * @see WebSession#getMaxIdleTime()
+   * @see Session#getMaxIdleTime()
    */
   int maxIdleTime() default 1800;
 
